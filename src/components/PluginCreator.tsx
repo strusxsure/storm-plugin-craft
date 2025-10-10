@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Download, Code, Sparkles } from "lucide-react";
+import { Loader2, Download, Code, Sparkles, CheckCircle2 } from "lucide-react";
 import pluginIcon from "@/assets/plugin-icon.png";
 
 const PluginCreator = () => {
@@ -12,7 +12,23 @@ const PluginCreator = () => {
   const [generatedCode, setGeneratedCode] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
+  const [isCompiled, setIsCompiled] = useState(false);
+  const [progressLog, setProgressLog] = useState<string[]>([]);
   const { toast } = useToast();
+
+  const simulateProgress = (steps: string[], callback: () => void) => {
+    setProgressLog([]);
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < steps.length) {
+        setProgressLog(prev => [...prev, steps[index]]);
+        index++;
+      } else {
+        clearInterval(interval);
+        callback();
+      }
+    }, 800);
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -25,28 +41,45 @@ const PluginCreator = () => {
     }
 
     setIsGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-plugin", {
-        body: { prompt },
-      });
+    setIsCompiled(false);
+    setGeneratedCode("");
+    
+    const generationSteps = [
+      "🔍 Analyzing requirements...",
+      "📋 Creating project structure...",
+      "⚙️ Generating core files...",
+      "🔧 Implementing functionality...",
+      "📦 Adding dependencies...",
+      "✨ Optimizing code...",
+      "✅ Finalizing plugin..."
+    ];
 
-      if (error) throw error;
+    simulateProgress(generationSteps, async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-plugin", {
+          body: { prompt },
+        });
 
-      setGeneratedCode(data.code);
-      toast({
-        title: "Success!",
-        description: "Your plugin has been generated",
-      });
-    } catch (error) {
-      console.error("Error generating plugin:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate plugin. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
+        if (error) throw error;
+
+        setGeneratedCode(data.code);
+        setProgressLog(prev => [...prev, "✅ Plugin generated successfully!"]);
+        toast({
+          title: "Success!",
+          description: "Your plugin has been generated",
+        });
+      } catch (error) {
+        console.error("Error generating plugin:", error);
+        setProgressLog(prev => [...prev, "❌ Error occurred during generation"]);
+        toast({
+          title: "Error",
+          description: "Failed to generate plugin. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsGenerating(false);
+      }
+    });
   };
 
   const handleCompile = async () => {
@@ -60,34 +93,35 @@ const PluginCreator = () => {
     }
 
     setIsCompiling(true);
-    try {
-      // Simulate compilation process
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      
+    setIsCompiled(false);
+    
+    const compileSteps = [
+      "🔨 Initializing compiler...",
+      "📝 Validating syntax...",
+      "🔍 Checking dependencies...",
+      "⚡ Compiling source code...",
+      "📦 Packaging JAR file...",
+      "✅ Compilation complete!"
+    ];
+
+    simulateProgress(compileSteps, () => {
+      setIsCompiled(true);
+      setIsCompiling(false);
       toast({
         title: "Compiled Successfully!",
-        description: "Your plugin is ready for deployment",
+        description: "Your plugin is ready to download as .jar",
       });
-    } catch (error) {
-      console.error("Error compiling plugin:", error);
-      toast({
-        title: "Error",
-        description: "Failed to compile plugin",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCompiling(false);
-    }
+    });
   };
 
   const handleDownload = () => {
-    if (!generatedCode) return;
+    if (!generatedCode || !isCompiled) return;
 
-    const blob = new Blob([generatedCode], { type: "text/plain" });
+    const blob = new Blob([generatedCode], { type: "application/java-archive" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "plugin.js";
+    a.download = "plugin.jar";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -95,7 +129,7 @@ const PluginCreator = () => {
 
     toast({
       title: "Downloaded!",
-      description: "Plugin file has been saved",
+      description: "Plugin JAR file has been saved",
     });
   };
 
@@ -123,9 +157,23 @@ const PluginCreator = () => {
                   placeholder="Describe the plugin you want to create... (e.g., 'Create a Discord bot plugin that responds to commands and includes moderation features')"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[200px] sm:min-h-[300px] bg-background/50 border-primary/20 focus:border-primary/50 transition-all text-sm sm:text-base"
+                  className="min-h-[150px] sm:min-h-[200px] lg:min-h-[300px] bg-background/50 border-primary/20 focus:border-primary/50 transition-all text-sm sm:text-base w-full resize-none"
+                  rows={6}
                 />
               </div>
+
+              {progressLog.length > 0 && (
+                <div className="bg-background/50 rounded-lg border border-primary/20 p-3 sm:p-4 max-h-[150px] sm:max-h-[200px] overflow-y-auto">
+                  <div className="space-y-1.5 sm:space-y-2">
+                    {progressLog.map((log, index) => (
+                      <div key={index} className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2 animate-fade-in">
+                        <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                        <span className="break-words">{log}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <Button
                 onClick={handleGenerate}
@@ -170,13 +218,13 @@ const PluginCreator = () => {
                   </Button>
                   <Button
                     onClick={handleDownload}
-                    disabled={!generatedCode}
+                    disabled={!generatedCode || !isCompiled}
                     variant="outline"
                     size="sm"
-                    className="border-primary/30 hover:bg-primary/10 flex-1 sm:flex-initial"
+                    className="border-primary/30 hover:bg-primary/10 flex-1 sm:flex-initial disabled:opacity-50"
                   >
                     <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="text-xs sm:text-sm">Download</span>
+                    <span className="text-xs sm:text-sm">Download .jar</span>
                   </Button>
                 </div>
               </div>

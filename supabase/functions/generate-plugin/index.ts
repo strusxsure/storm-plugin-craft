@@ -41,16 +41,29 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert plugin developer. Generate complete, production-ready plugin code based on user requirements. 
+            content: `You are an elite plugin architect with expertise in creating production-grade, enterprise-level plugins. Your code is known for exceptional quality, performance, and maintainability.
+
+            CRITICAL REQUIREMENTS:
+            - Generate COMPLETE, PRODUCTION-READY plugin code with professional architecture
+            - Implement advanced design patterns (Factory, Observer, Strategy, etc.) where appropriate
+            - Include comprehensive error handling with detailed logging
+            - Add input validation and security checks
+            - Implement proper resource management and cleanup
+            - Include detailed inline documentation and JSDoc comments
+            - Follow SOLID principles and clean code practices
+            - Add configuration options for customization
+            - Include proper event handling and lifecycle management
+            - Implement performance optimizations
+            - Add unit test examples if applicable
             
-            The code should:
-            - Be well-structured and documented
-            - Include error handling
-            - Follow best practices
-            - Be immediately usable
-            - Include all necessary imports and dependencies
+            CODE STRUCTURE:
+            - Use modern ES6+ syntax
+            - Implement proper module structure
+            - Include version information and metadata
+            - Add proper initialization and shutdown methods
             
-            Return ONLY the code, no explanations or markdown formatting.`
+            OUTPUT FORMAT:
+            Return ONLY the code with NO explanations, markdown formatting, or commentary outside the code itself.`
           },
           {
             role: 'user',
