@@ -94,24 +94,68 @@ const PluginCreator = () => {
 
     setIsCompiling(true);
     setIsCompiled(false);
+    setProgressLog([]);
     
-    const compileSteps = [
-      "🔨 Initializing compiler...",
-      "📝 Validating syntax...",
-      "🔍 Checking dependencies...",
-      "⚡ Compiling source code...",
-      "📦 Packaging JAR file...",
-      "✅ Compilation complete!"
-    ];
+    try {
+      setProgressLog(["🔨 Initializing Java compiler..."]);
+      
+      const { data, error } = await supabase.functions.invoke("compile-plugin", {
+        body: { 
+          code: generatedCode,
+          fileName: "plugin.jar"
+        },
+      });
 
-    simulateProgress(compileSteps, () => {
+      if (error) {
+        console.error("Compilation error:", error);
+        setProgressLog(prev => [...prev, "❌ Compilation failed: " + error.message]);
+        toast({
+          title: "Compilation Failed",
+          description: error.message || "Failed to compile plugin",
+          variant: "destructive",
+        });
+        setIsCompiling(false);
+        return;
+      }
+
+      if (!data.success) {
+        setProgressLog(prev => [...prev, "❌ Compilation error: " + data.error]);
+        toast({
+          title: "Compilation Failed",
+          description: data.error || "Code has syntax errors",
+          variant: "destructive",
+        });
+        setIsCompiling(false);
+        return;
+      }
+
+      // Show compilation progress
+      setProgressLog([
+        "🔨 Java compiler initialized",
+        "📝 Syntax validation passed",
+        "🔍 Dependencies checked",
+        "⚡ Bytecode compilation complete",
+        "📦 JAR packaging successful",
+        "✅ Plugin ready for download!"
+      ]);
+
       setIsCompiled(true);
       setIsCompiling(false);
+      
       toast({
-        title: "Compiled Successfully!",
-        description: "Your plugin is ready to download as .jar",
+        title: "Compilation Successful!",
+        description: `Compiled in ${data.time}ms. Ready to download!`,
       });
-    });
+    } catch (error) {
+      console.error("Compilation error:", error);
+      setProgressLog(prev => [...prev, "❌ Error: " + error.message]);
+      toast({
+        title: "Error",
+        description: "Failed to compile plugin. Please try again.",
+        variant: "destructive",
+      });
+      setIsCompiling(false);
+    }
   };
 
   const handleDownload = () => {

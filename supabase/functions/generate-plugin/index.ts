@@ -27,49 +27,55 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    console.log('Generating plugin with AI for prompt:', prompt);
+    console.log('Generating plugin with Claude Opus for prompt:', prompt);
 
-    // Call Lovable AI Gateway with google/gemini-2.5-pro for best results
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
+    const systemPrompt = `You are an expert Minecraft/Spigot plugin developer with deep knowledge of Bukkit/Spigot API. Generate complete, production-ready, compilable plugin code.
+
+CRITICAL REQUIREMENTS:
+1. Generate COMPLETE, fully functional Java code with ALL necessary imports
+2. Use Spigot API 1.20.x (org.bukkit.* and org.bukkit.plugin.java.*)
+3. Include proper package declaration: package com.yourname.pluginname;
+4. Main class MUST extend JavaPlugin
+5. Include onEnable() and onDisable() methods
+6. Proper event handling with @EventHandler annotations
+7. Complete command handling with onCommand() method
+8. Add plugin.yml metadata in comments
+9. Include robust error handling and logging (getLogger().info/warning/severe)
+10. Follow Minecraft plugin best practices and design patterns
+11. Make code production-ready, not just examples
+12. Add detailed comments for complex logic
+13. Include configuration handling when needed
+14. Proper resource cleanup in onDisable()
+15. Thread-safe code where necessary
+
+STRUCTURE YOUR RESPONSE:
+First, provide the plugin.yml content in comments.
+Then provide the complete Main class code.
+Add any additional classes if needed.
+
+Generate enterprise-grade code that compiles without errors and runs perfectly on Minecraft servers.`;
+
+    // Use Claude Opus for better code generation
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: "claude-opus-4-1-20250805", // Using best Claude model for superior code generation
         messages: [
           {
-            role: 'system',
-            content: `You are an elite plugin architect with expertise in creating production-grade, enterprise-level plugins. Your code is known for exceptional quality, performance, and maintainability.
-
-            CRITICAL REQUIREMENTS:
-            - Generate COMPLETE, PRODUCTION-READY plugin code with professional architecture
-            - Implement advanced design patterns (Factory, Observer, Strategy, etc.) where appropriate
-            - Include comprehensive error handling with detailed logging
-            - Add input validation and security checks
-            - Implement proper resource management and cleanup
-            - Include detailed inline documentation and JSDoc comments
-            - Follow SOLID principles and clean code practices
-            - Add configuration options for customization
-            - Include proper event handling and lifecycle management
-            - Implement performance optimizations
-            - Add unit test examples if applicable
-            
-            CODE STRUCTURE:
-            - Use modern ES6+ syntax
-            - Implement proper module structure
-            - Include version information and metadata
-            - Add proper initialization and shutdown methods
-            
-            OUTPUT FORMAT:
-            Return ONLY the code with NO explanations, markdown formatting, or commentary outside the code itself.`
+            role: "system",
+            content: systemPrompt
           },
           {
-            role: 'user',
-            content: `Create a plugin with the following requirements: ${prompt}`
+            role: "user",
+            content: `Create a Minecraft Spigot plugin: ${prompt}\n\nProvide complete, production-ready code that compiles without errors. Include all necessary files and configuration.`
           }
         ],
+        temperature: 0.3, // Lower for more consistent code
+        max_tokens: 8000, // More tokens for complete code
       }),
     });
 
@@ -97,7 +103,7 @@ serve(async (req) => {
     const data = await response.json();
     const generatedCode = data.choices[0].message.content;
 
-    console.log('Plugin generated successfully');
+    console.log('Plugin generated successfully with Claude Opus');
 
     return new Response(
       JSON.stringify({ code: generatedCode }),
