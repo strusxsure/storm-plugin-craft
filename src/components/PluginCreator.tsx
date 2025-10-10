@@ -134,41 +134,41 @@ const PluginCreator = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-hero py-6 sm:py-8 lg:py-12 px-4 sm:px-6">
-      <div className="container mx-auto max-w-7xl">
+    <div className="min-h-screen bg-gradient-hero py-4 sm:py-6 lg:py-8 px-3 sm:px-4">
+      <div className="container mx-auto max-w-6xl w-full">
         {/* Header */}
-        <div className="text-center mb-8 sm:mb-10 lg:mb-12 animate-fade-in">
-          <img src={pluginIcon} alt="Plugin Icon" className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 animate-glow-pulse" />
-          <h2 className="text-3xl sm:text-4xl font-bold mb-3 sm:mb-4 bg-gradient-primary bg-clip-text text-transparent px-2">
+        <div className="text-center mb-4 sm:mb-6 lg:mb-8 animate-fade-in">
+          <img src={pluginIcon} alt="Plugin Icon" className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-2 sm:mb-4 animate-glow-pulse" />
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2 sm:mb-3 bg-gradient-primary bg-clip-text text-transparent px-2">
             Create Your Plugin
           </h2>
-          <p className="text-muted-foreground text-base sm:text-lg px-4">
+          <p className="text-muted-foreground text-sm sm:text-base px-4">
             Describe what you want, and AI will generate the code
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
+        <div className="grid lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
           {/* Input Section */}
-          <Card className="p-4 sm:p-6 bg-gradient-card border-primary/20 shadow-elegant">
-            <div className="space-y-4 sm:space-y-6">
+          <Card className="p-3 sm:p-4 lg:p-6 bg-gradient-card border-primary/20 shadow-elegant">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Plugin Description</label>
+                <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">Plugin Description</label>
                 <Textarea
-                  placeholder="Describe the plugin you want to create... (e.g., 'Create a Discord bot plugin that responds to commands and includes moderation features')"
+                  placeholder="Describe the plugin... (e.g., 'Create a Discord bot plugin with commands and moderation')"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[150px] sm:min-h-[200px] lg:min-h-[300px] bg-background/50 border-primary/20 focus:border-primary/50 transition-all text-sm sm:text-base w-full resize-none"
-                  rows={6}
+                  className="min-h-[120px] sm:min-h-[160px] lg:min-h-[250px] bg-background/50 border-primary/20 focus:border-primary/50 transition-all text-xs sm:text-sm w-full resize-none"
+                  rows={5}
                 />
               </div>
 
               {progressLog.length > 0 && (
-                <div className="bg-background/50 rounded-lg border border-primary/20 p-3 sm:p-4 max-h-[150px] sm:max-h-[200px] overflow-y-auto">
-                  <div className="space-y-1.5 sm:space-y-2">
+                <div className="bg-background/50 rounded-lg border border-primary/20 p-2 sm:p-3 max-h-[120px] sm:max-h-[150px] overflow-y-auto">
+                  <div className="space-y-1 sm:space-y-1.5">
                     {progressLog.map((log, index) => (
-                      <div key={index} className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2 animate-fade-in">
-                        <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
-                        <span className="break-words">{log}</span>
+                      <div key={index} className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1.5 sm:gap-2 animate-fade-in">
+                        <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary flex-shrink-0" />
+                        <span className="break-words leading-tight">{log}</span>
                       </div>
                     ))}
                   </div>
@@ -197,10 +197,10 @@ const PluginCreator = () => {
           </Card>
 
           {/* Output Section */}
-          <Card className="p-4 sm:p-6 bg-gradient-card border-primary/20 shadow-elegant">
-            <div className="space-y-4 sm:space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <label className="text-sm font-medium">Generated Code</label>
+          <Card className="p-3 sm:p-4 lg:p-6 bg-gradient-card border-primary/20 shadow-elegant">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                <label className="text-xs sm:text-sm font-medium">Generated Code</label>
                 <div className="flex gap-2">
                   <Button
                     onClick={handleCompile}
@@ -230,7 +230,7 @@ const PluginCreator = () => {
               </div>
 
               <div className="relative">
-                <pre className="p-3 sm:p-4 bg-background/50 rounded-lg border border-primary/20 overflow-auto max-h-[300px] sm:max-h-[400px] text-xs sm:text-sm">
+                <pre className="p-2 sm:p-3 bg-background/50 rounded-lg border border-primary/20 overflow-auto max-h-[200px] sm:max-h-[300px] lg:max-h-[400px] text-[10px] sm:text-xs leading-tight sm:leading-normal">
                   <code className="text-foreground">
                     {generatedCode || "// Your generated plugin code will appear here..."}
                   </code>
