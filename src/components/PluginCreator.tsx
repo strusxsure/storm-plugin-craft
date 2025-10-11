@@ -11,10 +11,7 @@ const PluginCreator = () => {
   const [prompt, setPrompt] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isCompiling, setIsCompiling] = useState(false);
-  const [isCompiled, setIsCompiled] = useState(false);
   const [progressLog, setProgressLog] = useState<string[]>([]);
-  const [jarBase64, setJarBase64] = useState<string | null>(null);
   const { toast } = useToast();
 
   const simulateProgress = (steps: string[], callback: () => void) => {
@@ -42,7 +39,6 @@ const PluginCreator = () => {
     }
 
     setIsGenerating(true);
-    setIsCompiled(false);
     setGeneratedCode("");
     
     const generationSteps = [
@@ -64,10 +60,10 @@ const PluginCreator = () => {
         if (error) throw error;
 
         setGeneratedCode(data.code);
-        setProgressLog(prev => [...prev, "✅ Plugin generated successfully!"]);
+        setProgressLog(prev => [...prev, "✅ Plugin generated successfully! Download the Maven project to build it."]);
         toast({
           title: "Success!",
-          description: "Your plugin has been generated",
+          description: "Plugin generated! Download the Maven project to build the JAR locally.",
         });
       } catch (error) {
         console.error("Error generating plugin:", error);
@@ -83,105 +79,135 @@ const PluginCreator = () => {
     });
   };
 
-  const handleCompile = async () => {
-    if (!generatedCode) {
-      toast({
-        title: "Error",
-        description: "No code to compile",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsCompiling(true);
-    setIsCompiled(false);
-    setJarBase64(null);
-    setProgressLog(["🔨 Initializing Java compiler..."]);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke("compile-plugin", {
-        body: { 
-          code: generatedCode,
-          fileName: "plugin.jar"
-        },
-      });
-
-      if (error) throw new Error(error.message || "Compilation failed");
-
-      if (!data?.success) {
-        setProgressLog(prev => [...prev, "❌ Compilation error: " + (data?.error || "Unknown error" )]);
-        toast({
-          title: "Compilation Failed",
-          description: (data?.error || "Missing dependencies (e.g., Spigot API) cannot be compiled online. Use the ZIP to build locally."),
-          variant: "destructive",
-        });
-        setIsCompiling(false);
-        return;
-      }
-
-      // If backend ever returns a jarBase64, store it
-      if (data.jarBase64) setJarBase64(data.jarBase64);
-
-      setProgressLog([
-        "🔨 Java compiler initialized",
-        "📝 Syntax validation passed",
-        "🔍 Dependencies checked",
-        "⚡ Bytecode compilation complete",
-        "📦 JAR packaging successful",
-        "✅ Plugin ready for download!"
-      ]);
-
-      setIsCompiled(true);
-      toast({
-        title: "Compilation Successful!",
-        description: data.time ? `Compiled in ${data.time}ms.` : "Ready to download!",
-      });
-    } catch (e: any) {
-      console.error("Compilation error:", e);
-      setProgressLog(prev => [...prev, "❌ Error: " + (e.message || e.toString())]);
-      toast({
-        title: "Error",
-        description: "Failed to compile plugin. Use the ZIP to build locally.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCompiling(false);
-    }
-  };
-
-  const handleDownload = () => {
+  const handleDownloadMaven = async () => {
     if (!generatedCode) return;
 
-    // If backend provided a jar, use it
-    if (jarBase64 && isCompiled) {
-      const byteCharacters = atob(jarBase64);
-      const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, i) => byteCharacters.charCodeAt(i));
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: "application/java-archive" });
+    try {
+      const zip = new JSZip();
+      
+      // Create Maven project structure
+      zip.file("src/main/java/com/yourplugin/Main.java", generatedCode);
+      
+      // Create pom.xml with Spigot dependency
+      const pomXml = `<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.yourplugin</groupId>
+    <artifactId>YourPlugin</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>spigot-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.20.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>`;
+      
+      zip.file("pom.xml", pomXml);
+      
+      // Create plugin.yml
+      const pluginYml = `name: YourPlugin
+version: 1.0.0
+main: com.yourplugin.Main
+api-version: 1.20
+author: AI Generated
+description: AI-generated Minecraft plugin
+commands: {}
+permissions: {}`;
+      
+      zip.file("src/main/resources/plugin.yml", pluginYml);
+      
+      // Create README
+      const readme = `# AI-Generated Minecraft Plugin
+
+## How to Build:
+
+1. Install Maven (https://maven.apache.org/download.cgi)
+2. Open terminal in this folder
+3. Run: mvn clean package
+4. Find your JAR in target/ folder
+5. Copy the JAR to your server's plugins/ folder
+6. Restart your server
+
+## Requirements:
+- Java 17+
+- Maven 3.6+
+- Spigot/Paper server 1.20+
+
+## Note:
+Edit src/main/java/com/yourplugin/Main.java to customize the plugin.
+Edit src/main/resources/plugin.yml to change plugin metadata.`;
+      
+      zip.file("README.md", readme);
+      
+      const blob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "plugin.jar";
+      a.download = "minecraft-plugin-maven-project.zip";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast({ title: "Downloaded!", description: "Plugin JAR file saved" });
-      return;
+      
+      toast({
+        title: "Downloaded!",
+        description: "Maven project downloaded. Run 'mvn clean package' to build the JAR.",
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create download",
+        variant: "destructive",
+      });
     }
+  };
 
-    // Fallback: download generated code as .java (if no jar produced)
+  const handleDownloadSource = () => {
+    if (!generatedCode) return;
+
     const blob = new Blob([generatedCode], { type: "text/x-java-source" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "Plugin.java";
+    a.download = "Main.java";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    toast({ title: "Downloaded!", description: "Saved Java source (build locally for JAR)" });
+    toast({ title: "Downloaded!", description: "Java source code saved" });
   };
 
   return (
@@ -252,53 +278,25 @@ const PluginCreator = () => {
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
                 <label className="text-xs sm:text-sm font-medium">Generated Code</label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
-                    onClick={handleCompile}
-                    disabled={!generatedCode || isCompiling}
-                    variant="outline"
+                    onClick={handleDownloadMaven}
+                    disabled={!generatedCode}
+                    className="bg-primary hover:bg-primary/90 text-xs sm:text-sm px-3 py-2"
                     size="sm"
-                    className="border-primary/30 hover:bg-primary/10 flex-1 sm:flex-initial"
-                  >
-                    {isCompiling ? (
-                      <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-                    ) : (
-                      <Code className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    )}
-                    <span className="text-xs sm:text-sm">Compile</span>
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      if (!generatedCode) return;
-                      const zip = new JSZip();
-                      zip.file("src/main/java/com/example/plugin/Main.java", generatedCode);
-                      zip.file("plugin.yml", `name: AIPlugin\nmain: com.example.plugin.Main\nversion: 1.0.0\napi-version: 1.20\ncommands: {}`);
-                      const blob = await zip.generateAsync({ type: "blob" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = "plugin-project.zip";
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="border-primary/30 hover:bg-primary/10 flex-1 sm:flex-initial"
                   >
                     <FileArchive className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="text-xs sm:text-sm">Download Project (.zip)</span>
+                    Download Maven Project
                   </Button>
                   <Button
-                    onClick={handleDownload}
+                    onClick={handleDownloadSource}
                     disabled={!generatedCode}
                     variant="outline"
                     size="sm"
-                    className="border-primary/30 hover:bg-primary/10 flex-1 sm:flex-initial disabled:opacity-50"
+                    className="border-primary/30 hover:bg-primary/10 text-xs sm:text-sm px-3 py-2"
                   >
                     <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="text-xs sm:text-sm">{isCompiled && jarBase64 ? "Download .jar" : "Download .java"}</span>
+                    Source Only
                   </Button>
                 </div>
               </div>
