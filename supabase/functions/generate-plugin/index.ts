@@ -63,7 +63,7 @@ Generate enterprise-grade code that compiles without errors and runs perfectly o
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-opus-4-1-20250805", // Using best Claude model for superior code generation
+        model: "google/gemini-2.5-flash", // Supported and fast
         messages: [
           {
             role: "system",
@@ -74,8 +74,8 @@ Generate enterprise-grade code that compiles without errors and runs perfectly o
             content: `Create a Minecraft Spigot plugin: ${prompt}\n\nProvide complete, production-ready code that compiles without errors. Include all necessary files and configuration.`
           }
         ],
-        temperature: 0.3, // Lower for more consistent code
-        max_tokens: 8000, // More tokens for complete code
+        temperature: 0.35,
+        max_tokens: 6000,
       }),
     });
 

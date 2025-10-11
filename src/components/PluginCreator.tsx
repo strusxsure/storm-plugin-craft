@@ -4,9 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Download, Code, Sparkles, CheckCircle2 } from "lucide-react";
+import { Loader2, Download, Code, Sparkles, CheckCircle2, FileArchive } from "lucide-react";
 import pluginIcon from "@/assets/plugin-icon.png";
-
+import JSZip from "jszip";
 const PluginCreator = () => {
   const [prompt, setPrompt] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
@@ -14,6 +14,7 @@ const PluginCreator = () => {
   const [isCompiling, setIsCompiling] = useState(false);
   const [isCompiled, setIsCompiled] = useState(false);
   const [progressLog, setProgressLog] = useState<string[]>([]);
+  const [jarBase64, setJarBase64] = useState<string | null>(null);
   const { toast } = useToast();
 
   const simulateProgress = (steps: string[], callback: () => void) => {
@@ -94,11 +95,10 @@ const PluginCreator = () => {
 
     setIsCompiling(true);
     setIsCompiled(false);
-    setProgressLog([]);
+    setJarBase64(null);
+    setProgressLog(["🔨 Initializing Java compiler..."]);
     
     try {
-      setProgressLog(["🔨 Initializing Java compiler..."]);
-      
       const { data, error } = await supabase.functions.invoke("compile-plugin", {
         body: { 
           code: generatedCode,
@@ -106,30 +106,22 @@ const PluginCreator = () => {
         },
       });
 
-      if (error) {
-        console.error("Compilation error:", error);
-        setProgressLog(prev => [...prev, "❌ Compilation failed: " + error.message]);
+      if (error) throw new Error(error.message || "Compilation failed");
+
+      if (!data?.success) {
+        setProgressLog(prev => [...prev, "❌ Compilation error: " + (data?.error || "Unknown error" )]);
         toast({
           title: "Compilation Failed",
-          description: error.message || "Failed to compile plugin",
+          description: (data?.error || "Missing dependencies (e.g., Spigot API) cannot be compiled online. Use the ZIP to build locally."),
           variant: "destructive",
         });
         setIsCompiling(false);
         return;
       }
 
-      if (!data.success) {
-        setProgressLog(prev => [...prev, "❌ Compilation error: " + data.error]);
-        toast({
-          title: "Compilation Failed",
-          description: data.error || "Code has syntax errors",
-          variant: "destructive",
-        });
-        setIsCompiling(false);
-        return;
-      }
+      // If backend ever returns a jarBase64, store it
+      if (data.jarBase64) setJarBase64(data.jarBase64);
 
-      // Show compilation progress
       setProgressLog([
         "🔨 Java compiler initialized",
         "📝 Syntax validation passed",
@@ -140,41 +132,56 @@ const PluginCreator = () => {
       ]);
 
       setIsCompiled(true);
-      setIsCompiling(false);
-      
       toast({
         title: "Compilation Successful!",
-        description: `Compiled in ${data.time}ms. Ready to download!`,
+        description: data.time ? `Compiled in ${data.time}ms.` : "Ready to download!",
       });
-    } catch (error) {
-      console.error("Compilation error:", error);
-      setProgressLog(prev => [...prev, "❌ Error: " + error.message]);
+    } catch (e: any) {
+      console.error("Compilation error:", e);
+      setProgressLog(prev => [...prev, "❌ Error: " + (e.message || e.toString())]);
       toast({
         title: "Error",
-        description: "Failed to compile plugin. Please try again.",
+        description: "Failed to compile plugin. Use the ZIP to build locally.",
         variant: "destructive",
       });
+    } finally {
       setIsCompiling(false);
     }
   };
 
   const handleDownload = () => {
-    if (!generatedCode || !isCompiled) return;
+    if (!generatedCode) return;
 
-    const blob = new Blob([generatedCode], { type: "application/java-archive" });
+    // If backend provided a jar, use it
+    if (jarBase64 && isCompiled) {
+      const byteCharacters = atob(jarBase64);
+      const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, i) => byteCharacters.charCodeAt(i));
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/java-archive" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "plugin.jar";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Downloaded!", description: "Plugin JAR file saved" });
+      return;
+    }
+
+    // Fallback: download generated code as .java (if no jar produced)
+    const blob = new Blob([generatedCode], { type: "text/x-java-source" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "plugin.jar";
+    a.download = "Plugin.java";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    toast({
-      title: "Downloaded!",
-      description: "Plugin JAR file has been saved",
-    });
+    toast({ title: "Downloaded!", description: "Saved Java source (build locally for JAR)" });
   };
 
   return (
@@ -261,14 +268,37 @@ const PluginCreator = () => {
                     <span className="text-xs sm:text-sm">Compile</span>
                   </Button>
                   <Button
+                    onClick={async () => {
+                      if (!generatedCode) return;
+                      const zip = new JSZip();
+                      zip.file("src/main/java/com/example/plugin/Main.java", generatedCode);
+                      zip.file("plugin.yml", `name: AIPlugin\nmain: com.example.plugin.Main\nversion: 1.0.0\napi-version: 1.20\ncommands: {}`);
+                      const blob = await zip.generateAsync({ type: "blob" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "plugin-project.zip";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="border-primary/30 hover:bg-primary/10 flex-1 sm:flex-initial"
+                  >
+                    <FileArchive className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Download Project (.zip)</span>
+                  </Button>
+                  <Button
                     onClick={handleDownload}
-                    disabled={!generatedCode || !isCompiled}
+                    disabled={!generatedCode}
                     variant="outline"
                     size="sm"
                     className="border-primary/30 hover:bg-primary/10 flex-1 sm:flex-initial disabled:opacity-50"
                   >
                     <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="text-xs sm:text-sm">Download .jar</span>
+                    <span className="text-xs sm:text-sm">{isCompiled && jarBase64 ? "Download .jar" : "Download .java"}</span>
                   </Button>
                 </div>
               </div>
