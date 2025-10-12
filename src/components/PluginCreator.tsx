@@ -71,6 +71,10 @@ const PluginCreator = () => {
 
         if (error) throw error;
 
+        if (!data || typeof data.files !== 'object' || data.files === null) {
+          throw new Error("Invalid response from generation service.");
+        }
+
         setGeneratedFiles(data.files);
         setJarBase64("");
         

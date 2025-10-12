@@ -101,12 +101,49 @@ Generate enterprise-grade code that compiles without errors and runs perfectly o
     }
 
     const data = await response.json();
-    const generatedCode = data.choices[0].message.content;
+    const generatedContent = data.choices[0].message.content;
 
-    console.log('Plugin generated successfully with Claude Opus');
+    // --- New File Parsing Logic ---
+    const files: Record<string, string> = {};
+    const codeBlocks = generatedContent.split("```");
+
+    let currentFile = "";
+    for (let i = 0; i < codeBlocks.length; i++) {
+      const block = codeBlocks[i].trim();
+      if (block.startsWith("java") || block.startsWith("yml") || block.startsWith("xml")) {
+        const firstLine = block.substring(0, block.indexOf('\n')).trim();
+        // Heuristic to find file path, e.g., "// src/main/java/com/myplugin/Main.java"
+        const pathMatch = block.match(/\/\/\s*([\w\/\-\.]+\.java)/) || block.match(/#\s*([\w\/\-\.]+\.yml)/);
+
+        if (pathMatch) {
+          currentFile = pathMatch[1];
+        } else {
+          // Fallback for file naming
+          if (block.startsWith("java")) currentFile = `src/main/java/com/myplugin/Main${Object.keys(files).length}.java`;
+          else if (block.startsWith("yml")) currentFile = "src/main/resources/plugin.yml";
+          else currentFile = `pom.xml`;
+        }
+
+        files[currentFile] = block.substring(block.indexOf('\n') + 1);
+      } else if (block) {
+         // Handle content that is not in a labeled code block
+         if (!files["src/main/java/com/myplugin/Main.java"]) {
+            files["src/main/java/com/myplugin/Main.java"] = block;
+         }
+      }
+    }
+
+    // Simple fallback if parsing fails
+    if (Object.keys(files).length === 0) {
+        files["src/main/java/com/myplugin/Main.java"] = generatedContent;
+        files["src/main/resources/plugin.yml"] = "name: MyPlugin\nversion: 1.0\nmain: com.myplugin.Main\napi-version: 1.20";
+    }
+    // --- End of New Logic ---
+
+    console.log('Plugin generated and parsed successfully');
 
     return new Response(
-      JSON.stringify({ code: generatedCode }),
+      JSON.stringify({ files: files }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
