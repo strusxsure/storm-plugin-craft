@@ -2,3 +2,6 @@ project_id = "lvvvpxhiwrbssomimheo"
 
 [functions.generate-plugin]
 verify_jwt = false
+
+[functions.compile-plugin]
+verify_jwt = false

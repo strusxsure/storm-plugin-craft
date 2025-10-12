@@ -4,13 +4,17 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Download, Code, Sparkles, CheckCircle2, FileArchive } from "lucide-react";
+import { Loader2, Download, Code, Sparkles, CheckCircle2, FileArchive, Zap } from "lucide-react";
 import pluginIcon from "@/assets/plugin-icon.png";
 import JSZip from "jszip";
+
 const PluginCreator = () => {
   const [prompt, setPrompt] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [jarBase64, setJarBase64] = useState("");
+  const [pluginName, setPluginName] = useState("MyPlugin");
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const { toast } = useToast();
 
@@ -60,10 +64,16 @@ const PluginCreator = () => {
         if (error) throw error;
 
         setGeneratedCode(data.code);
-        setProgressLog(prev => [...prev, "✅ Plugin generated successfully! Download the Maven project to build it."]);
+        setJarBase64("");
+        
+        // Extract plugin name from generated code
+        const nameMatch = data.code.match(/name:\s*(\w+)/);
+        if (nameMatch) setPluginName(nameMatch[1]);
+        
+        setProgressLog(prev => [...prev, "✅ Plugin generated! Click 'Compile to JAR' for instant download."]);
         toast({
           title: "Success!",
-          description: "Plugin generated! Download the Maven project to build the JAR locally.",
+          description: "Plugin generated! Click Compile to create the JAR file.",
         });
       } catch (error) {
         console.error("Error generating plugin:", error);
@@ -76,6 +86,96 @@ const PluginCreator = () => {
       } finally {
         setIsGenerating(false);
       }
+    });
+  };
+
+  const handleCompile = async () => {
+    if (!generatedCode) return;
+    
+    setIsCompiling(true);
+    setProgressLog(prev => [...prev, "🔧 Starting compilation..."]);
+    
+    try {
+      // Extract plugin.yml from generated code comments
+      const pluginYmlMatch = generatedCode.match(/plugin\.yml:?\s*\n([\s\S]*?)(?:\n\n|$)/i);
+      let pluginYml = "";
+      
+      if (pluginYmlMatch) {
+        pluginYml = pluginYmlMatch[1].trim();
+      } else {
+        // Generate basic plugin.yml
+        pluginYml = `name: ${pluginName}
+version: 1.0.0
+main: com.yourplugin.Main
+api-version: 1.20
+author: AI Generated
+description: AI-generated Minecraft plugin`;
+      }
+      
+      setProgressLog(prev => [...prev, "📦 Compiling with dependencies..."]);
+      
+      const { data, error } = await supabase.functions.invoke("compile-plugin", {
+        body: { 
+          javaCode: generatedCode,
+          pluginYml: pluginYml,
+          pluginName: pluginName
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        setProgressLog(prev => [...prev, `❌ Compilation failed: ${data.error}`]);
+        toast({
+          title: "Compilation Failed",
+          description: data.details || "Please check the generated code",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setJarBase64(data.jarBase64);
+      setProgressLog(prev => [...prev, "✅ Compilation successful! JAR ready for download."]);
+      toast({
+        title: "Compiled!",
+        description: "Your plugin JAR is ready to download.",
+      });
+    } catch (error) {
+      console.error("Compilation error:", error);
+      setProgressLog(prev => [...prev, "❌ Compilation error occurred"]);
+      toast({
+        title: "Error",
+        description: "Failed to compile plugin",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCompiling(false);
+    }
+  };
+
+  const handleDownloadJar = () => {
+    if (!jarBase64) return;
+
+    const byteCharacters = atob(jarBase64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: "application/java-archive" });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${pluginName}.jar`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Downloaded!",
+      description: `${pluginName}.jar downloaded successfully`,
     });
   };
 
@@ -276,17 +376,46 @@ Edit src/main/resources/plugin.yml to change plugin metadata.`;
           {/* Output Section */}
           <Card className="p-3 sm:p-4 lg:p-6 bg-gradient-card border-primary/20 shadow-elegant">
             <div className="space-y-3 sm:space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+              <div className="flex flex-col gap-2 sm:gap-3">
                 <label className="text-xs sm:text-sm font-medium">Generated Code</label>
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    onClick={handleDownloadMaven}
-                    disabled={!generatedCode}
-                    className="bg-primary hover:bg-primary/90 text-xs sm:text-sm px-3 py-2"
+                    onClick={handleCompile}
+                    disabled={!generatedCode || isCompiling}
+                    className="bg-primary hover:bg-primary/90 text-xs sm:text-sm px-3 py-2 shadow-glow"
                     size="sm"
                   >
+                    {isCompiling ? (
+                      <>
+                        <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                        Compiling...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        Compile to JAR
+                      </>
+                    )}
+                  </Button>
+                  {jarBase64 && (
+                    <Button
+                      onClick={handleDownloadJar}
+                      className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm px-3 py-2"
+                      size="sm"
+                    >
+                      <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                      Download JAR
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleDownloadMaven}
+                    disabled={!generatedCode}
+                    variant="outline"
+                    size="sm"
+                    className="border-primary/30 hover:bg-primary/10 text-xs sm:text-sm px-3 py-2"
+                  >
                     <FileArchive className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    Download Maven Project
+                    Maven Project
                   </Button>
                   <Button
                     onClick={handleDownloadSource}
@@ -295,8 +424,8 @@ Edit src/main/resources/plugin.yml to change plugin metadata.`;
                     size="sm"
                     className="border-primary/30 hover:bg-primary/10 text-xs sm:text-sm px-3 py-2"
                   >
-                    <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    Source Only
+                    <Code className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                    Source
                   </Button>
                 </div>
               </div>
