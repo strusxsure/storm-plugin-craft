@@ -4,18 +4,26 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Download, Code, Sparkles, CheckCircle2, FileArchive, Zap } from "lucide-react";
+import { Loader2, Download, Code, Sparkles, CheckCircle2, FileArchive, Zap, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import pluginIcon from "@/assets/plugin-icon.png";
 import JSZip from "jszip";
 
 const PluginCreator = () => {
   const [prompt, setPrompt] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
+  const [generatedFiles, setGeneratedFiles] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [jarBase64, setJarBase64] = useState("");
   const [pluginName, setPluginName] = useState("MyPlugin");
   const [progressLog, setProgressLog] = useState<string[]>([]);
+  const [minecraftVersion, setMinecraftVersion] = useState("1.21");
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const { toast } = useToast();
 
   const simulateProgress = (steps: string[], callback: () => void) => {
@@ -43,7 +51,7 @@ const PluginCreator = () => {
     }
 
     setIsGenerating(true);
-    setGeneratedCode("");
+    setGeneratedFiles({});
     
     const generationSteps = [
       "🔍 Analyzing requirements...",
@@ -63,12 +71,21 @@ const PluginCreator = () => {
 
         if (error) throw error;
 
-        setGeneratedCode(data.code);
+        setGeneratedFiles(data.files);
         setJarBase64("");
         
-        // Extract plugin name from generated code
-        const nameMatch = data.code.match(/name:\s*(\w+)/);
-        if (nameMatch) setPluginName(nameMatch[1]);
+        // Extract plugin name from plugin.yml
+        const pluginYml = data.files["src/main/resources/plugin.yml"];
+        if (pluginYml) {
+          const nameMatch = pluginYml.match(/name:\s*(\w+)/);
+          if (nameMatch) setPluginName(nameMatch[1]);
+        }
+
+        // Automatically select the main Java file
+        const mainJavaFile = Object.keys(data.files).find(
+          (path) => path.startsWith("src/main/java") && path.endsWith(".java")
+        );
+        setSelectedFile(mainJavaFile || null);
         
         setProgressLog(prev => [...prev, "✅ Plugin generated! Click 'Compile to JAR' for instant download."]);
         toast({
@@ -90,48 +107,30 @@ const PluginCreator = () => {
   };
 
   const handleCompile = async () => {
-    if (!generatedCode) return;
+    if (Object.keys(generatedFiles).length === 0) return;
     
     setIsCompiling(true);
     setProgressLog(prev => [...prev, "🔧 Starting compilation..."]);
     
     try {
-      // Extract plugin.yml from generated code comments
-      const pluginYmlMatch = generatedCode.match(/plugin\.yml:?\s*\n([\s\S]*?)(?:\n\n|$)/i);
-      let pluginYml = "";
-      
-      if (pluginYmlMatch) {
-        pluginYml = pluginYmlMatch[1].trim();
-      } else {
-        // Generate basic plugin.yml
-        pluginYml = `name: ${pluginName}
-version: 1.0.0
-main: com.yourplugin.Main
-api-version: 1.20
-author: AI Generated
-description: AI-generated Minecraft plugin`;
-      }
-      
       setProgressLog(prev => [...prev, "📦 Compiling with dependencies..."]);
       
-      const { data, error } = await supabase.functions.invoke("compile-plugin", {
-        body: { 
-          javaCode: generatedCode,
-          pluginYml: pluginYml,
-          pluginName: pluginName
+      const response = await fetch("http://localhost:8001", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          files: generatedFiles,
+          pluginName: pluginName,
+          minecraftVersion: minecraftVersion,
+        }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      if (data.error) {
-        setProgressLog(prev => [...prev, `❌ Compilation failed: ${data.error}`]);
-        toast({
-          title: "Compilation Failed",
-          description: data.details || "Please check the generated code",
-          variant: "destructive",
-        });
-        return;
+      if (!response.ok) {
+        throw new Error(data.details || data.error || "Unknown error");
       }
 
       setJarBase64(data.jarBase64);
@@ -180,101 +179,19 @@ description: AI-generated Minecraft plugin`;
   };
 
   const handleDownloadMaven = async () => {
-    if (!generatedCode) return;
+    if (Object.keys(generatedFiles).length === 0) return;
 
     try {
       const zip = new JSZip();
-      
-      // Create Maven project structure
-      zip.file("src/main/java/com/yourplugin/Main.java", generatedCode);
-      
-      // Create pom.xml with Spigot dependency
-      const pomXml = `<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-
-    <groupId>com.yourplugin</groupId>
-    <artifactId>YourPlugin</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
-
-    <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
-    <repositories>
-        <repository>
-            <id>spigot-repo</id>
-            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-        </repository>
-    </repositories>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.20.4-R0.1-SNAPSHOT</version>
-            <scope>provided</scope>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-            </plugin>
-        </plugins>
-    </build>
-</project>`;
-      
-      zip.file("pom.xml", pomXml);
-      
-      // Create plugin.yml
-      const pluginYml = `name: YourPlugin
-version: 1.0.0
-main: com.yourplugin.Main
-api-version: 1.20
-author: AI Generated
-description: AI-generated Minecraft plugin
-commands: {}
-permissions: {}`;
-      
-      zip.file("src/main/resources/plugin.yml", pluginYml);
-      
-      // Create README
-      const readme = `# AI-Generated Minecraft Plugin
-
-## How to Build:
-
-1. Install Maven (https://maven.apache.org/download.cgi)
-2. Open terminal in this folder
-3. Run: mvn clean package
-4. Find your JAR in target/ folder
-5. Copy the JAR to your server's plugins/ folder
-6. Restart your server
-
-## Requirements:
-- Java 17+
-- Maven 3.6+
-- Spigot/Paper server 1.20+
-
-## Note:
-Edit src/main/java/com/yourplugin/Main.java to customize the plugin.
-Edit src/main/resources/plugin.yml to change plugin metadata.`;
-      
-      zip.file("README.md", readme);
+      for (const [path, content] of Object.entries(generatedFiles)) {
+        zip.file(path, content);
+      }
       
       const blob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "minecraft-plugin-maven-project.zip";
+      a.download = `${pluginName}-maven-project.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -295,9 +212,15 @@ Edit src/main/resources/plugin.yml to change plugin metadata.`;
   };
 
   const handleDownloadSource = () => {
-    if (!generatedCode) return;
+    if (Object.keys(generatedFiles).length === 0) return;
 
-    const blob = new Blob([generatedCode], { type: "text/x-java-source" });
+    const mainJavaFile = Object.entries(generatedFiles).find(([path]) => path.endsWith("Main.java"));
+    if (!mainJavaFile) {
+        toast({ title: "Error", description: "Main.java not found", variant: "destructive" });
+        return;
+    }
+
+    const blob = new Blob([mainJavaFile[1]], { type: "text/x-java-source" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -308,6 +231,17 @@ Edit src/main/resources/plugin.yml to change plugin metadata.`;
     URL.revokeObjectURL(url);
 
     toast({ title: "Downloaded!", description: "Java source code saved" });
+  };
+
+  const mainJavaFileEntry = Object.entries(generatedFiles).find(
+    ([path]) => path.startsWith("src/main/java") && path.endsWith(".java")
+  );
+
+  const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (mainJavaFileEntry) {
+      const [path] = mainJavaFileEntry;
+      setGeneratedFiles(prev => ({ ...prev, [path]: e.target.value }));
+    }
   };
 
   return (
@@ -329,7 +263,24 @@ Edit src/main/resources/plugin.yml to change plugin metadata.`;
           <Card className="p-3 sm:p-4 lg:p-6 bg-gradient-card border-primary/20 shadow-elegant">
             <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">Plugin Description</label>
+                  <div className="flex justify-between items-center mb-1.5 sm:mb-2">
+                    <label className="text-xs sm:text-sm font-medium">Plugin Description</label>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="text-xs sm:text-sm px-2 py-1 h-auto">
+                          MC {minecraftVersion}
+                          <ChevronDown className="w-3 h-3 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onSelect={() => setMinecraftVersion("1.21")}>1.21</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setMinecraftVersion("1.20.4")}>1.20.4</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setMinecraftVersion("1.19.4")}>1.19.4</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setMinecraftVersion("1.18.2")}>1.18.2</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setMinecraftVersion("1.17.1")}>1.17.1</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 <Textarea
                   placeholder="Describe the plugin... (e.g., 'Create a Discord bot plugin with commands and moderation')"
                   value={prompt}
@@ -381,7 +332,7 @@ Edit src/main/resources/plugin.yml to change plugin metadata.`;
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={handleCompile}
-                    disabled={!generatedCode || isCompiling}
+                    disabled={Object.keys(generatedFiles).length === 0 || isCompiling}
                     className="bg-primary hover:bg-primary/90 text-xs sm:text-sm px-3 py-2 shadow-glow"
                     size="sm"
                   >
@@ -409,7 +360,7 @@ Edit src/main/resources/plugin.yml to change plugin metadata.`;
                   )}
                   <Button
                     onClick={handleDownloadMaven}
-                    disabled={!generatedCode}
+                    disabled={Object.keys(generatedFiles).length === 0}
                     variant="outline"
                     size="sm"
                     className="border-primary/30 hover:bg-primary/10 text-xs sm:text-sm px-3 py-2"
@@ -419,7 +370,7 @@ Edit src/main/resources/plugin.yml to change plugin metadata.`;
                   </Button>
                   <Button
                     onClick={handleDownloadSource}
-                    disabled={!generatedCode}
+                    disabled={Object.keys(generatedFiles).length === 0}
                     variant="outline"
                     size="sm"
                     className="border-primary/30 hover:bg-primary/10 text-xs sm:text-sm px-3 py-2"
@@ -430,19 +381,44 @@ Edit src/main/resources/plugin.yml to change plugin metadata.`;
                 </div>
               </div>
 
-              <div className="relative">
-                <pre className="p-2 sm:p-3 bg-background/50 rounded-lg border border-primary/20 overflow-auto max-h-[200px] sm:max-h-[300px] lg:max-h-[400px] text-[10px] sm:text-xs leading-tight sm:leading-normal">
-                  <code className="text-foreground">
-                    {generatedCode || "// Your generated plugin code will appear here..."}
-                  </code>
-                </pre>
-                {!generatedCode && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
-                    <p className="text-muted-foreground text-center text-xs sm:text-sm">
-                      Enter a description and click Generate
-                    </p>
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-3">
+                  <div className="bg-background/50 rounded-lg border border-primary/20 p-2 h-full">
+                    <p className="text-xs font-medium mb-2">Files</p>
+                    <div className="space-y-1">
+                      {Object.keys(generatedFiles).map((path) => (
+                        <button
+                          key={path}
+                          onClick={() => setSelectedFile(path)}
+                          className={`w-full text-left text-xs p-1 rounded ${
+                            selectedFile === path ? "bg-primary/20" : ""
+                          }`}
+                        >
+                          {path.split("/").pop()}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                )}
+                </div>
+                <div className="col-span-9 relative">
+                  <Textarea
+                    value={selectedFile ? generatedFiles[selectedFile] : "// Select a file to view its content"}
+                    onChange={(e) => {
+                      if (selectedFile) {
+                        setGeneratedFiles(prev => ({ ...prev, [selectedFile]: e.target.value }));
+                      }
+                    }}
+                    className="p-2 sm:p-3 bg-background/50 rounded-lg border border-primary/20 overflow-auto h-full text-[10px] sm:text-xs leading-tight sm:leading-normal font-mono"
+                    readOnly={!selectedFile}
+                  />
+                  {Object.keys(generatedFiles).length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
+                      <p className="text-muted-foreground text-center text-xs sm:text-sm">
+                        Enter a description and click Generate
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </Card>
