@@ -115,7 +115,7 @@ const PluginCreator = () => {
     try {
       setProgressLog(prev => [...prev, "📦 Compiling with dependencies..."]);
       
-      const response = await fetch("http://localhost:8001", {
+      const response = await fetch("https://93b56dfc-72fb-4e3e-a00b-c0497694afd7-00-1ya06760my2a4.pike.replit.dev:8000/", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
