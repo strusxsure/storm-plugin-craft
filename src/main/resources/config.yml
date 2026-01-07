@@ -1,0 +1,48 @@
+# ThunderPvPractice Configuration File
+
+# Dueling System Settings
+duels:
+  ranked:
+    enabled: true
+  unranked:
+    enabled: true
+  2v2:
+    enabled: true
+
+# Matchmaking Settings
+matchmaking:
+  queue_update_interval: 5 # in seconds
+
+# Arena Settings
+arenas:
+  schematics_folder: "arenas"
+  max_arenas_per_kit: 10
+
+# Kit Settings
+kits:
+  default_kit: "NoDebuff"
+
+# Party Settings
+parties:
+  max_party_size: 8
+
+# Event Settings
+events:
+  enabled: true
+  event_interval: 3600 # in seconds
+
+# Bot Settings
+bots:
+  enabled: false
+  difficulty: "NORMAL"
+
+# Scoreboard Settings
+scoreboard:
+  title: "&b&lThunderPvP"
+  show_stats: true
+
+# Messages
+messages:
+  prefix: "&8[&bThunderPvP&8] "
+  duel_request_sent: "&aDuel request sent to {player}."
+  duel_request_received: "&aYou have received a duel request from {player}."
