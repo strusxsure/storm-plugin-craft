@@ -24,7 +24,7 @@ public class CommandManager implements CommandExecutor {
             }
         }
         // If no subcommand is matched, you can send a help message or default response.
-        sender.sendMessage("Unknown command. Use /thunderpvp help for a list of commands.");
+        sender.sendMessage(com.thunderpvp.thunderpvppractice.ThunderPvPractice.color(com.thunderpvp.thunderpvppractice.ThunderPvPractice.plugin.getConfig().getString("messages.prefix") + com.thunderpvp.thunderpvppractice.ThunderPvPractice.plugin.getConfig().getString("messages.unknown_command")));
         return true;
     }
 }

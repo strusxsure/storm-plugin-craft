@@ -1,7 +1,6 @@
 name: ThunderPvPractice
 version: ${project.version}
 main: com.thunderpvp.thunderpvppractice.ThunderPvPractice
-author: Jules
 description: A practice plugin for PvP.
 commands:
   thunderpvp:
