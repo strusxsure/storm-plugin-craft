@@ -49,6 +49,8 @@ public class ArenaManager {
             String path = "arenas." + arena.getName();
             arenasConfig.set(path + ".spawn1", arena.getSpawn1());
             arenasConfig.set(path + ".spawn2", arena.getSpawn2());
+            arenasConfig.set(path + ".corner1", arena.getCorner1());
+            arenasConfig.set(path + ".corner2", arena.getCorner2());
         }
         try {
             arenasConfig.save(arenasFile);
@@ -68,16 +70,23 @@ public class ArenaManager {
             String path = "arenas." + arenaName;
             Location spawn1 = (Location) arenasConfig.get(path + ".spawn1");
             Location spawn2 = (Location) arenasConfig.get(path + ".spawn2");
+            Location corner1 = (Location) arenasConfig.get(path + ".corner1");
+            Location corner2 = (Location) arenasConfig.get(path + ".corner2");
             Arena arena = new Arena(arenaName, spawn1, spawn2);
+            arena.setCorner1(corner1);
+            arena.setCorner2(corner2);
             arenas.put(arenaName.toLowerCase(), arena);
         }
     }
 
-    public boolean createArena(String name) {
+    public boolean createArena(String name, Location corner1, Location corner2) {
         if (arenas.containsKey(name.toLowerCase())) {
             return false; // Arena already exists
         }
-        arenas.put(name.toLowerCase(), new Arena(name));
+        Arena arena = new Arena(name);
+        arena.setCorner1(corner1);
+        arena.setCorner2(corner2);
+        arenas.put(name.toLowerCase(), arena);
         saveArenas();
         return true;
     }

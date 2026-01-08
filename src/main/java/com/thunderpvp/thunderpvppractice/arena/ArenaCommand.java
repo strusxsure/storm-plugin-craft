@@ -10,10 +10,12 @@ public class ArenaCommand implements CommandExecutor {
 
     private final ThunderPvPractice plugin;
     private final ArenaManager arenaManager;
+    private final SelectionListener selectionListener;
 
-    public ArenaCommand(ThunderPvPractice plugin, ArenaManager arenaManager) {
+    public ArenaCommand(ThunderPvPractice plugin, ArenaManager arenaManager, SelectionListener selectionListener) {
         this.plugin = plugin;
         this.arenaManager = arenaManager;
+        this.selectionListener = selectionListener;
     }
 
     @Override
@@ -65,7 +67,16 @@ public class ArenaCommand implements CommandExecutor {
             return;
         }
         String arenaName = args[2];
-        if (arenaManager.createArena(arenaName)) {
+
+        org.bukkit.Location pos1 = selectionListener.pos1Selections.get(player.getUniqueId());
+        org.bukkit.Location pos2 = selectionListener.pos2Selections.get(player.getUniqueId());
+
+        if (pos1 == null || pos2 == null) {
+            player.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.selection_not_set")));
+            return;
+        }
+
+        if (arenaManager.createArena(arenaName, pos1, pos2)) {
             player.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.arena_created").replace("{arena_name}", arenaName)));
         } else {
             player.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.arena_already_exists")));

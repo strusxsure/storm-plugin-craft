@@ -2,6 +2,7 @@ package com.thunderpvp.thunderpvppractice;
 
 import com.thunderpvp.thunderpvppractice.arena.ArenaCommand;
 import com.thunderpvp.thunderpvppractice.arena.ArenaManager;
+import com.thunderpvp.thunderpvppractice.arena.SelectionListener;
 import com.thunderpvp.thunderpvppractice.commands.CommandManager;
 import com.thunderpvp.thunderpvppractice.kit.KitCommand;
 import com.thunderpvp.thunderpvppractice.kit.KitManager;
@@ -20,10 +21,13 @@ public class ThunderPvPractice extends JavaPlugin {
         commandManager = new CommandManager();
         kitManager = new KitManager(this);
         arenaManager = new ArenaManager(this);
+        SelectionListener selectionListener = new SelectionListener(this);
+
+        getServer().getPluginManager().registerEvents(selectionListener, this);
 
         getCommand("thunderpvp").setExecutor(commandManager);
         commandManager.registerCommand("kit", new KitCommand(this, kitManager));
-        commandManager.registerCommand("arena", new ArenaCommand(this, arenaManager));
+        commandManager.registerCommand("arena", new ArenaCommand(this, arenaManager, selectionListener));
 
         saveDefaultConfig();
 

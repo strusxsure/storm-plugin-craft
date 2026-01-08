@@ -71,3 +71,8 @@ messages:
   arena_delete_usage: "&cUsage: /thunderpvp arena delete <name>"
   arena_setspawn_usage: "&cUsage: /thunderpvp arena setspawn1/setspawn2 <name>"
   arena_list_usage: "&cUsage: /thunderpvp arena list"
+
+  # Selection Messages
+  selection_pos1_set: "&aPosition 1 set."
+  selection_pos2_set: "&aPosition 2 set."
+  selection_not_set: "&cYou must set both positions first."
