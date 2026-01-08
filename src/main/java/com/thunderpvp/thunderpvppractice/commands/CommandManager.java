@@ -8,7 +8,12 @@ import java.util.Map;
 
 public class CommandManager implements CommandExecutor {
 
+    private final com.thunderpvp.thunderpvppractice.ThunderPvPractice plugin;
     private final Map<String, CommandExecutor> commands = new HashMap<>();
+
+    public CommandManager(com.thunderpvp.thunderpvppractice.ThunderPvPractice plugin) {
+        this.plugin = plugin;
+    }
 
     public void registerCommand(String commandName, CommandExecutor executor) {
         commands.put(commandName.toLowerCase(), executor);
@@ -24,7 +29,7 @@ public class CommandManager implements CommandExecutor {
             }
         }
         // If no subcommand is matched, you can send a help message or default response.
-        sender.sendMessage(com.thunderpvp.thunderpvppractice.ThunderPvPractice.color(com.thunderpvp.thunderpvppractice.ThunderPvPractice.plugin.getConfig().getString("messages.prefix") + com.thunderpvp.thunderpvppractice.ThunderPvPractice.plugin.getConfig().getString("messages.unknown_command")));
+        sender.sendMessage(com.thunderpvp.thunderpvppractice.ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.unknown_command")));
         return true;
     }
 }

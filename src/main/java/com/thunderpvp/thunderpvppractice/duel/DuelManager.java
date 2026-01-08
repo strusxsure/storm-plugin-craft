@@ -16,22 +16,28 @@ public class DuelManager {
     private final ThunderPvPractice plugin;
     private final Map<UUID, DuelRequest> duelRequests = new HashMap<>();
     private final Map<UUID, Duel> activeDuels = new HashMap<>();
-    private final Map<UUID, ItemStack[]> playerInventories = new HashMap<>();
-    private final Map<UUID, ItemStack[]> playerArmor = new HashMap<>();
-    private final Map<UUID, Collection<PotionEffect>> playerEffects = new HashMap<>();
-    private final Map<UUID, GameMode> playerGameModes = new HashMap<>();
 
     public DuelManager(ThunderPvPractice plugin) {
         this.plugin = plugin;
     }
 
     public void createDuelRequest(Player requester, Player target, String kitName) {
+        com.thunderpvp.thunderpvppractice.party.Party party1 = plugin.getPartyManager().getParty(requester);
+        com.thunderpvp.thunderpvppractice.party.Party party2 = plugin.getPartyManager().getParty(target);
+
+        if (party1 == null) { // Handle 1v1
+            party1 = new com.thunderpvp.thunderpvppractice.party.Party(requester);
+        }
+        if (party2 == null) { // Handle 1v1
+            party2 = new com.thunderpvp.thunderpvppractice.party.Party(target);
+        }
+
         com.thunderpvp.thunderpvppractice.kit.Kit kit = plugin.getKitManager().getKit(kitName);
         if (kit == null) {
             requester.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.kit_not_found")));
             return;
         }
-        DuelRequest request = new DuelRequest(requester, target, kit);
+        DuelRequest request = new DuelRequest(plugin, requester, target, kit);
         duelRequests.put(target.getUniqueId(), request);
 
         requester.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_request_sent").replace("{player}", target.getName())));
@@ -52,7 +58,18 @@ public class DuelManager {
         }
 
         duelRequests.remove(target.getUniqueId());
-        startDuel(requester, target, request.getKit());
+
+        com.thunderpvp.thunderpvppractice.party.Party party1 = plugin.getPartyManager().getParty(requester);
+        com.thunderpvp.thunderpvppractice.party.Party party2 = plugin.getPartyManager().getParty(target);
+
+        if (party1 == null) {
+            party1 = new com.thunderpvp.thunderpvppractice.party.Party(requester);
+        }
+        if (party2 == null) {
+            party2 = new com.thunderpvp.thunderpvppractice.party.Party(target);
+        }
+
+        startDuel(party1, party2, request.getKit());
     }
 
     public void denyDuelRequest(Player target) {
@@ -66,85 +83,105 @@ public class DuelManager {
         }
     }
 
-    public void startDuel(Player player1, Player player2, com.thunderpvp.thunderpvppractice.kit.Kit kit) {
+    public void startDuel(com.thunderpvp.thunderpvppractice.party.Party party1, com.thunderpvp.thunderpvppractice.party.Party party2, com.thunderpvp.thunderpvppractice.kit.Kit kit) {
         Arena arena = plugin.getArenaManager().getAvailableArena();
         if (arena == null) {
-            player1.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + "&cNo arenas are available right now."));
-            player2.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + "&cNo arenas are available right now."));
+            party1.broadcast(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.no_arenas_available")));
+            party2.broadcast(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.no_arenas_available")));
             return;
         }
+        arena.setState(com.thunderpvp.thunderpvppractice.arena.ArenaState.IN_USE);
 
-        savePlayerState(player1);
-        savePlayerState(player2);
+        List<UUID> team1 = party1.getMembers();
+        List<UUID> team2 = party2.getMembers();
 
-        player1.teleport(arena.getSpawn1());
-        player2.teleport(arena.getSpawn2());
+        for (UUID playerId : team1) {
+            Player player = Bukkit.getPlayer(playerId);
+            savePlayerState(player);
+            player.teleport(arena.getSpawn1());
+            player.getInventory().setContents(kit.getInventory());
+            player.getInventory().setArmorContents(kit.getArmor());
+            player.addPotionEffects(kit.getPotionEffects());
+        }
 
-        player1.getInventory().setContents(kit.getInventory());
-        player1.getInventory().setArmorContents(kit.getArmor());
-        player1.addPotionEffects(kit.getPotionEffects());
+        for (UUID playerId : team2) {
+            Player player = Bukkit.getPlayer(playerId);
+            savePlayerState(player);
+            player.teleport(arena.getSpawn2());
+            player.getInventory().setContents(kit.getInventory());
+            player.getInventory().setArmorContents(kit.getArmor());
+            player.addPotionEffects(kit.getPotionEffects());
+        }
 
-        player2.getInventory().setContents(kit.getInventory());
-        player2.getInventory().setArmorContents(kit.getArmor());
-        player2.addPotionEffects(kit.getPotionEffects());
-
-        Duel duel = new Duel(player1, player2, kit, arena);
-        activeDuels.put(player1.getUniqueId(), duel);
-        activeDuels.put(player2.getUniqueId(), duel);
+        Duel duel = new Duel(team1, team2, kit, arena);
+        for (UUID playerId : team1) activeDuels.put(playerId, duel);
+        for (UUID playerId : team2) activeDuels.put(playerId, duel);
 
         new BukkitRunnable() {
             int countdown = 5;
-
             @Override
             public void run() {
                 if (countdown > 0) {
-                    player1.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_starting_in").replace("{seconds}", String.valueOf(countdown))));
-                    player2.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_starting_in").replace("{seconds}", String.valueOf(countdown))));
+                    party1.broadcast(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_starting_in").replace("{seconds}", String.valueOf(countdown))));
+                    party2.broadcast(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_starting_in").replace("{seconds}", String.valueOf(countdown))));
                     countdown--;
                 } else {
                     duel.setState(DuelState.FIGHTING);
-                    player1.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_started")));
-                    player2.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_started")));
+                    party1.broadcast(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_started")));
+                    party2.broadcast(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_started")));
                     this.cancel();
                 }
             }
         }.runTaskTimer(plugin, 0, 20);
     }
 
-    public void endDuel(Duel duel, Player winner, Player loser) {
+    public void endDuel(Duel duel, List<UUID> winners, List<UUID> losers) {
         duel.setState(DuelState.ENDING);
 
-        if (winner != null) {
-            Bukkit.broadcastMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_winner").replace("{player}", winner.getName())));
+        if (winners != null && !winners.isEmpty()) {
+            // In a real scenario, you'd format this list nicely.
+            String winnerNames = winners.stream().map(uuid -> Bukkit.getPlayer(uuid).getName()).collect(java.util.stream.Collectors.joining(", "));
+            Bukkit.broadcastMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_winner").replace("{player}", winnerNames)));
         }
 
-        restorePlayerState(Bukkit.getPlayer(duel.getPlayer1()));
-        restorePlayerState(Bukkit.getPlayer(duel.getPlayer2()));
+        for (UUID playerId : duel.getTeam1()) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player != null) {
+                restorePlayerState(player);
+            }
+            activeDuels.remove(playerId);
+        }
+        for (UUID playerId : duel.getTeam2()) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player != null) {
+                restorePlayerState(player);
+            }
+            activeDuels.remove(playerId);
+        }
 
-        activeDuels.remove(duel.getPlayer1());
-        activeDuels.remove(duel.getPlayer2());
+        duel.getArena().setState(com.thunderpvp.thunderpvppractice.arena.ArenaState.AVAILABLE);
     }
 
     public void savePlayerState(Player player) {
-        playerInventories.put(player.getUniqueId(), player.getInventory().getContents());
-        playerArmor.put(player.getUniqueId(), player.getInventory().getArmorContents());
-        playerEffects.put(player.getUniqueId(), player.getActivePotionEffects());
-        playerGameModes.put(player.getUniqueId(), player.getGameMode());
+        PlayerState state = new PlayerState(player);
+        org.bukkit.configuration.file.FileConfiguration config = new org.bukkit.configuration.file.YamlConfiguration();
+        state.save(config);
+        try {
+            java.io.File file = new java.io.File(plugin.getDataFolder(), "playerstates/" + player.getUniqueId() + ".yml");
+            file.getParentFile().mkdirs();
+            config.save(file);
+        } catch (java.io.IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void restorePlayerState(Player player) {
-        player.getInventory().setContents(playerInventories.get(player.getUniqueId()));
-        player.getInventory().setArmorContents(playerArmor.get(player.getUniqueId()));
-        for (PotionEffect effect : player.getActivePotionEffects()) {
-            player.removePotionEffect(effect.getType());
+        java.io.File file = new java.io.File(plugin.getDataFolder(), "playerstates/" + player.getUniqueId() + ".yml");
+        if (file.exists()) {
+            org.bukkit.configuration.file.FileConfiguration config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+            PlayerState.restore(player, config);
+            file.delete();
         }
-        player.addPotionEffects(playerEffects.get(player.getUniqueId()));
-        player.setGameMode(playerGameModes.get(player.getUniqueId()));
-
-        playerInventories.remove(player.getUniqueId());
-        playerArmor.remove(player.getUniqueId());
-        playerEffects.remove(player.getUniqueId());
-        playerGameModes.remove(player.getUniqueId());
     }
 
     public Duel getDuel(Player player) {

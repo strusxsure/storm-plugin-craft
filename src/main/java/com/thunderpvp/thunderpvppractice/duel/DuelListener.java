@@ -9,6 +9,10 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 public class DuelListener implements Listener {
 
     private final ThunderPvPractice plugin;
@@ -24,8 +28,7 @@ public class DuelListener implements Listener {
         Player loser = event.getEntity();
         Duel duel = duelManager.getDuel(loser);
         if (duel != null) {
-            Player winner = Bukkit.getPlayer(duel.getPlayer1().equals(loser.getUniqueId()) ? duel.getPlayer2() : duel.getPlayer1());
-            duelManager.endDuel(duel, winner, loser);
+            handlePlayerDefeat(duel, loser);
         }
     }
 
@@ -34,8 +37,37 @@ public class DuelListener implements Listener {
         Player loser = event.getPlayer();
         Duel duel = duelManager.getDuel(loser);
         if (duel != null) {
-            Player winner = Bukkit.getPlayer(duel.getPlayer1().equals(loser.getUniqueId()) ? duel.getPlayer2() : duel.getPlayer1());
-            duelManager.endDuel(duel, winner, loser);
+            handlePlayerDefeat(duel, loser);
+        }
+    }
+
+    private void handlePlayerDefeat(Duel duel, Player loser) {
+        if (duel.getState() == DuelState.ENDING) {
+            return; // Duel is already ending
+        }
+
+        List<UUID> team1 = new ArrayList<>(duel.getTeam1());
+        List<UUID> team2 = new ArrayList<>(duel.getTeam2());
+        List<UUID> winningTeam;
+        List<UUID> losingTeam;
+
+        if (team1.contains(loser.getUniqueId())) {
+            losingTeam = team1;
+            winningTeam = team2;
+        } else {
+            losingTeam = team2;
+            winningTeam = team1;
+        }
+
+        losingTeam.remove(loser.getUniqueId());
+
+        boolean teamWiped = losingTeam.stream().noneMatch(uuid -> {
+            Player p = Bukkit.getPlayer(uuid);
+            return p != null && !p.isDead();
+        });
+
+        if (teamWiped) {
+            duelManager.endDuel(duel, winningTeam, losingTeam);
         }
     }
 
@@ -47,7 +79,7 @@ public class DuelListener implements Listener {
             if (!isInsideArena(player, duel.getArena())) {
                 // For simplicity, we'll just teleport them back to their spawn.
                 // A better implementation might push them back.
-                if (player.getUniqueId().equals(duel.getPlayer1())) {
+                if (duel.getTeam1().contains(player.getUniqueId())) {
                     player.teleport(duel.getArena().getSpawn1());
                 } else {
                     player.teleport(duel.getArena().getSpawn2());

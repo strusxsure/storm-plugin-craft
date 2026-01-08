@@ -105,4 +105,8 @@ public class KitManager {
     public List<String> getKitNames() {
         return kits.values().stream().map(Kit::getName).collect(Collectors.toList());
     }
+
+    public List<Kit> getKits() {
+        return new ArrayList<>(kits.values());
+    }
 }

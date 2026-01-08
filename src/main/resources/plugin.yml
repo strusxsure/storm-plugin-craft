@@ -15,3 +15,13 @@ commands:
   deny:
     description: Deny a duel request.
     usage: /<command> [player]
+  kits:
+    description: Open the kit selection GUI.
+    usage: /<command>
+  party:
+    description: Manage parties.
+    usage: /<command> [subcommand]
+permissions:
+  thunderpvp.admin:
+    description: Grants access to all administrative commands for ThunderPvPractice.
+    default: op

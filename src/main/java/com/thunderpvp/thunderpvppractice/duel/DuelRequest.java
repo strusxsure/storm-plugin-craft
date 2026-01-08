@@ -11,8 +11,10 @@ public class DuelRequest {
     private final UUID target;
     private final Kit kit;
     private final long timestamp;
+    private final com.thunderpvp.thunderpvppractice.ThunderPvPractice plugin;
 
-    public DuelRequest(Player requester, Player target, Kit kit) {
+    public DuelRequest(com.thunderpvp.thunderpvppractice.ThunderPvPractice plugin, Player requester, Player target, Kit kit) {
+        this.plugin = plugin;
         this.requester = requester.getUniqueId();
         this.target = target.getUniqueId();
         this.kit = kit;
@@ -32,7 +34,6 @@ public class DuelRequest {
     }
 
     public boolean hasExpired() {
-        // Requests expire after 60 seconds
-        return System.currentTimeMillis() - timestamp > 60000;
+        return System.currentTimeMillis() - timestamp > plugin.getConfig().getInt("duels.duel_request_timeout") * 1000;
     }
 }

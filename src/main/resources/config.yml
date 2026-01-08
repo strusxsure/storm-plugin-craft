@@ -2,6 +2,7 @@
 
 # Dueling System Settings
 duels:
+  duel_request_timeout: 60 # in seconds
   ranked:
     enabled: true
   unranked:
@@ -80,6 +81,29 @@ messages:
   # Duel Messages
   no_pending_request: "&cYou have no pending duel requests."
   requester_offline: "&cThe player who sent you a duel request is no longer online."
+  no_arenas_available: "&cNo arenas are available right now."
+  player_not_found: "&cPlayer not found."
+  duel_usage: "&cUsage: /duel <player> <kit>"
+
+  # Party Messages
+  party_usage: "&cParty Command Usage:"
+  party_create_usage: "&cUsage: /party create"
+  party_invite_usage: "&cUsage: /party invite <player>"
+  party_accept_usage: "&cUsage: /party accept"
+  party_leave_usage: "&cUsage: /party leave"
+  party_manage_usage: "&cUsage: /party manage"
+  party_duel_usage: "&cUsage: /party duel <player>"
+  party_created: "&aYou have created a party."
+  party_disbanded: "&cThe party has been disbanded."
+  not_party_leader: "&cYou are not the leader of your party."
+  player_already_in_party: "&cThat player is already in a party."
+  invite_sent: "&aYou have invited {player} to your party."
+  invite_received: "&aYou have received a party invite from {player}."
+  no_pending_invite: "&cYou have no pending party invites."
+  party_no_longer_exists: "&cThat party no longer exists."
+  player_joined_party: "&a{player} has joined the party."
+  not_in_party: "&cYou are not in a party."
+  player_left_party: "&c{player} has left the party."
   duel_request_denied: "&c{player} has denied your duel request."
   you_denied_request: "&aYou have denied the duel request."
   duel_starting_in: "&aDuel starting in {seconds}..."

@@ -6,28 +6,30 @@ import org.bukkit.entity.Player;
 
 import java.util.UUID;
 
+import java.util.List;
+
 public class Duel {
 
-    private final UUID player1;
-    private final UUID player2;
+    private final List<UUID> team1;
+    private final List<UUID> team2;
     private final Kit kit;
     private final Arena arena;
     private DuelState state;
 
-    public Duel(Player player1, Player player2, Kit kit, Arena arena) {
-        this.player1 = player1.getUniqueId();
-        this.player2 = player2.getUniqueId();
+    public Duel(List<UUID> team1, List<UUID> team2, Kit kit, Arena arena) {
+        this.team1 = team1;
+        this.team2 = team2;
         this.kit = kit;
         this.arena = arena;
         this.state = DuelState.STARTING;
     }
 
-    public UUID getPlayer1() {
-        return player1;
+    public List<UUID> getTeam1() {
+        return team1;
     }
 
-    public UUID getPlayer2() {
-        return player2;
+    public List<UUID> getTeam2() {
+        return team2;
     }
 
     public Kit getKit() {
@@ -47,6 +49,6 @@ public class Duel {
     }
 
     public boolean isFighting(Player player) {
-        return state == DuelState.FIGHTING && (player.getUniqueId().equals(player1) || player.getUniqueId().equals(player2));
+        return state == DuelState.FIGHTING && (team1.contains(player.getUniqueId()) || team2.contains(player.getUniqueId()));
     }
 }

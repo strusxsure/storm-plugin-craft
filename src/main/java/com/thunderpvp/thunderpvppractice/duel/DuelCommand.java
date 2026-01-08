@@ -37,16 +37,21 @@ public class DuelCommand implements CommandExecutor {
     }
 
     private void handleDuel(Player player, String[] args) {
-        if (args.length != 2) {
-            player.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + "&cUsage: /duel <player> <kit>"));
-            return;
+        if (args.length > 0) {
+            // Fallback to command-based duel for now
+            if (args.length != 2) {
+                player.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.duel_usage")));
+                return;
+            }
+            Player target = Bukkit.getPlayer(args[0]);
+            if (target == null) {
+                player.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.player_not_found")));
+                return;
+            }
+            duelManager.createDuelRequest(player, target, args[1]);
+        } else {
+            new com.thunderpvp.thunderpvppractice.gui.PlayerSelectionGUI(plugin, player).open();
         }
-        Player target = Bukkit.getPlayer(args[0]);
-        if (target == null) {
-            player.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + "&cPlayer not found."));
-            return;
-        }
-        duelManager.createDuelRequest(player, target, args[1]);
     }
 
     private void handleAccept(Player player, String[] args) {
