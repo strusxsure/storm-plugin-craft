@@ -76,3 +76,12 @@ messages:
   selection_pos1_set: "&aPosition 1 set."
   selection_pos2_set: "&aPosition 2 set."
   selection_not_set: "&cYou must set both positions first."
+
+  # Duel Messages
+  no_pending_request: "&cYou have no pending duel requests."
+  requester_offline: "&cThe player who sent you a duel request is no longer online."
+  duel_request_denied: "&c{player} has denied your duel request."
+  you_denied_request: "&aYou have denied the duel request."
+  duel_starting_in: "&aDuel starting in {seconds}..."
+  duel_started: "&aDuel started!"
+  duel_winner: "&a{player} has won the duel!"

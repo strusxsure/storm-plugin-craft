@@ -6,3 +6,12 @@ commands:
   thunderpvp:
     description: Main command for ThunderPvPractice.
     usage: /<command> [subcommand]
+  duel:
+    description: Challenge a player to a duel.
+    usage: /<command> <player> <kit>
+  accept:
+    description: Accept a duel request.
+    usage: /<command> [player]
+  deny:
+    description: Deny a duel request.
+    usage: /<command> [player]
