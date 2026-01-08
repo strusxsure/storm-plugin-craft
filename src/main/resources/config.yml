@@ -57,3 +57,17 @@ messages:
   kit_list_usage: "&cUsage: /thunderpvp kit list"
   player_only_command: "&cThis command can only be used by players."
   unknown_command: "&cUnknown command. Use /thunderpvp help for a list of commands."
+  no_permission: "&cYou do not have permission to use this command."
+
+  # Arena Messages
+  arena_created: "&aArena '{arena_name}' created successfully."
+  arena_deleted: "&aArena '{arena_name}' deleted successfully."
+  arena_already_exists: "&cAn arena with that name already exists."
+  arena_not_found: "&cAn arena with that name does not exist."
+  arena_list: "&aAvailable arenas: {arena_list}"
+  arena_spawn_set: "&aSet spawn {spawn_number} for arena '{arena_name}'."
+  arena_usage: "&cArena Command Usage:"
+  arena_create_usage: "&cUsage: /thunderpvp arena create <name>"
+  arena_delete_usage: "&cUsage: /thunderpvp arena delete <name>"
+  arena_setspawn_usage: "&cUsage: /thunderpvp arena setspawn1/setspawn2 <name>"
+  arena_list_usage: "&cUsage: /thunderpvp arena list"

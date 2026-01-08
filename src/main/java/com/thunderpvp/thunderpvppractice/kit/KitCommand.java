@@ -24,6 +24,10 @@ public class KitCommand implements CommandExecutor {
         }
 
         Player player = (Player) sender;
+        if (!player.hasPermission("thunderpvp.admin")) {
+            player.sendMessage(ThunderPvPractice.color(plugin.getConfig().getString("messages.prefix") + plugin.getConfig().getString("messages.no_permission")));
+            return true;
+        }
 
         if (args.length < 2) {
             sendUsage(player);
